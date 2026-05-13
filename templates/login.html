@@ -1,0 +1,28 @@
+<!DOCTYPE html><html lang="hr"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prijava</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head><body class="min-h-screen bg-gradient-to-br from-indigo-900 to-purple-800 text-white">
+<div class="max-w-md mx-auto mt-16 bg-white/10 backdrop-blur rounded-2xl p-8 shadow-xl">
+  <h1 class="text-3xl font-bold mb-6">Prijava</h1>
+
+  {% with msgs = get_flashed_messages(with_categories=true) %}
+    {% if msgs %}{% for cat, m in msgs %}
+      <div class="mb-3 rounded px-3 py-2 {{'bg-red-600' if cat=='danger' else 'bg-green-600'}}">{{ m }}</div>
+    {% endfor %}{% endif %}
+  {% endwith %}
+
+  <form method="post" class="space-y-4">
+    <div><label class="block mb-1">Korisničko ime</label>
+      <input name="username" class="w-full rounded px-3 py-2 text-black" required>
+    </div>
+    <div><label class="block mb-1">Lozinka</label>
+      <input type="password" name="password" class="w-full rounded px-3 py-2 text-black" required>
+    </div>
+    <button class="w-full bg-blue-600 hover:bg-blue-700 rounded-lg py-2 font-semibold">Prijava</button>
+  </form>
+
+  <p class="mt-4 text-sm text-white/80">Nemaš račun? <a class="underline" href="{{ url_for('register') }}">Registruj se</a></p>
+  <p class="mt-2"><a class="underline" href="{{ url_for('home') }}">← Nazad na početnu</a></p>
+</div>
+</body></html>

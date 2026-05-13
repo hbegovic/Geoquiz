@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="hr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>🏆 Leaderboard - Geo Kviz</title>
+    
+    <style>
+        /* === RESET I OSNOVNI STILOVI === */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: system-ui, 'Segoe UI', Roboto, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 25%, #2d1b69 50%, #7c3aed 100%);
+            min-height: 100vh;
+            color: #ffffff;
+            line-height: 1.6;
+            overflow-x: hidden;
+            position: relative;
+        }
+        
+        /* === ANIMIRANI POZADINSKI EFEKTI === */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 20%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(255, 118, 117, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 40% 60%, rgba(59, 130, 246, 0.2) 0%, transparent 50%);
+            animation: gradientShift 20s ease-in-out infinite;
+            z-index: -2;
+        }
+        
+        /* === PARTICLES CANVAS === */
+        #particles-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.6;
+        }
+        
+        @keyframes gradientShift {
+            0%, 100% { opacity: 1; transform: scale(1) rotate(0deg); }
+            50% { opacity: 0.8; transform: scale(1.1) rotate(180deg); }
+        }
+        
+        /* === GLAVNI KONTEJNER === */
+        .wrapper {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            position: relative;
+            z-index: 1;
+            min-height: 100vh;
+        }
+
+        .cat-pill{
+  padding:6px 10px;border-radius:9999px;
+  background:rgba(255,255,255,.12);
+  border:1px solid rgba(255,255,255,.2);
+  font-weight:700;font-size:.85rem
+}
+        
+        /* === HEADER === */
+        .header {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .back-btn {
+            color: #c7d2fe;
+            text-decoration: none;
+            font-size: 1.1rem;
+            font-weight: 600;
+            padding: 12px 20px;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+        
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        .leaderboard-title {
+            font-size: clamp(1.5rem, 4vw, 2.5rem);
+            font-weight: 800;
+            background: linear-gradient(45deg, #fbbf24, #f59e0b, #d97706);
+            background-size: 200% 200%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: gradientText 3s ease-in-out infinite;
+        }
+        
+        @keyframes gradientText {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+        
+        /* === FILTERS === */
+        .filters {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .filter-btn {
+            padding: 10px 20px;
+            border-radius: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.08);
+            color: #ffffff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(15px);
+            font-weight: 600;
+        }
+        
+        .filter-btn.active {
+            background: linear-gradient(45deg, #fbbf24, #f59e0b);
+            border-color: #fbbf24;
+            color: #000000;
+        }
+        
+        .filter-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        /* === LEADERBOARD TABELA === */
+        .leaderboard-container {
+            background: rgba(255, 255, 255, 0.08);
+            border: 2px solid rgba(255, 255, 255, 0.15);
+            border-radius: 24px;
+            padding: 30px;
+            backdrop-filter: blur(20px);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .leaderboard-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, rgba(124, 58, 237, 0.05), rgba(59, 130, 246, 0.05));
+            border-radius: 22px;
+        }
+        
+        .leaderboard-table {
+            position: relative;
+            z-index: 1;
+        }
+        
+        .player-row {
+            display: flex;
+            align-items: center;
+            padding: 20px;
+            border-radius: 16px;
+            margin-bottom: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+            animation: slideInUp 0.5s ease;
+            animation-fill-mode: both;
+        }
+        
+        .player-row:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        }
+        
+        .rank {
+            font-size: 1.5rem;
+            font-weight: bold;
+            min-width: 60px;
+            text-align: center;
+        }
+        
+        .rank.top1 { color: #fbbf24; text-shadow: 0 0 10px rgba(251, 191, 36, 0.5); }
+        .rank.top2 { color: #94a3b8; text-shadow: 0 0 10px rgba(148, 163, 184, 0.5); }
+        .rank.top3 { color: #f97316; text-shadow: 0 0 10px rgba(249, 115, 22, 0.5); }
+        
+        .player-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #3b82f6, #1d4ed8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-right: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .player-info {
+            flex: 1;
+        }
+        
+        .player-name {
+            font-size: 1.2rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+        
+        .player-stats {
+  font-size: 0.9rem;
+  opacity: 0.8;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+        }
+        
+        .score {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #22c55e;
+            min-width: 80px;
+            text-align: right;
+        }
+        
+        .crown {
+            margin-left: 10px;
+            font-size: 1.5rem;
+            animation: float 2s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-5px); }
+        }
+        
+        @keyframes slideInUp {
+            from { transform: translateY(30px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        /* === ACHIEVEMENTS === */
+        .achievements-section {
+            margin-top: 40px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 2px solid rgba(255, 255, 255, 0.15);
+            border-radius: 24px;
+            padding: 30px;
+            backdrop-filter: blur(20px);
+        }
+        
+        .achievements-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: #fbbf24;
+        }
+        
+        .achievements-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        
+        .achievement-card {
+            padding: 15px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .achievement-card:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: scale(1.05);
+        }
+        
+        .achievement-icon {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+        
+        .achievement-name {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        
+        .achievement-desc {
+            font-size: 0.8rem;
+            opacity: 0.7;
+        }
+        
+        /* === EMPTY STATE === */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            opacity: 0.7;
+        }
+        
+        .empty-state-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+        }
+        
+        /* === RESPONSIVE === */
+        @media (max-width: 768px) {
+            .wrapper {
+                padding: 16px;
+            }
+            
+            .player-row {
+                padding: 15px;
+                flex-wrap: wrap;
+            }
+            
+            .player-avatar {
+                width: 40px;
+                height: 40px;
+                margin-right: 15px;
+            }
+            
+            .player-stats {
+                flex-direction: column;
+                gap: 5px;
+            }
+            
+            .filters {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="particles-canvas"></canvas>
+    
+    <div class="wrapper">
+        <div class="header">
+            <a href="/" class="back-btn">← Nazad</a>
+            <h1 class="leaderboard-title">🏆 Leaderboard</h1>
+        </div>
+
+        <div class="filters">
+            <button class="filter-btn active" data-filter="all">🌍 Sve kategorije</button>
+            <button class="filter-btn" data-filter="flags">🏰 Zastave</button>
+            <button class="filter-btn" data-filter="shapes">🗺️ Oblik Zemlje</button>
+            <button class="filter-btn" data-filter="cities">🏛️ Glavni Gradovi</button>
+            <button class="filter-btn" data-filter="continents">🌍 Kontinenti</button>
+            <button class="filter-btn" data-filter="rivers">🌊 Rijeke i Mora</button>
+        </div>
+
+        <div class="leaderboard-container">
+            <div class="leaderboard-table" id="leaderboard">
+                <!-- Leaderboard se učitava dinamički -->
+                <div class="empty-state">
+                    <div class="empty-state-icon">⏳</div>
+                    <div>Učitavam leaderboard...</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="achievements-section">
+            <h2 class="achievements-title">🏅 Dostignuća</h2>
+            <div class="achievements-grid">
+                <div class="achievement-card">
+                    <div class="achievement-icon">🔥</div>
+                    <div class="achievement-name">Prva pobjeda</div>
+                    <div class="achievement-desc">Završi prvi kviz</div>
+                </div>
+                <div class="achievement-card">
+                    <div class="achievement-icon">⚡</div>
+                    <div class="achievement-name">Brzina</div>
+                    <div class="achievement-desc">Odgovori za manje od 3s</div>
+                </div>
+                <div class="achievement-card">
+                    <div class="achievement-icon">🎯</div>
+                    <div class="achievement-name">Perfekcija</div>
+                    <div class="achievement-desc">100% tačnih odgovora</div>
+                </div>
+                <div class="achievement-card">
+                    <div class="achievement-icon">🚀</div>
+                    <div class="achievement-name">Ekspert</div>
+                    <div class="achievement-desc">1000+ poena</div>
+                </div>
+                <div class="achievement-card">
+                    <div class="achievement-icon">👑</div>
+                    <div class="achievement-name">Prvak</div>
+                    <div class="achievement-desc">1. mjesto u kategoriji</div>
+                </div>
+                <div class="achievement-card">
+                    <div class="achievement-icon">🌟</div>
+                    <div class="achievement-name">Legenda</div>
+                    <div class="achievement-desc">5000+ poena ukupno</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // === PARTICLES SISTEM ===
+        const canvas = document.getElementById('particles-canvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+
+        function createParticle() {
+            return {
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                vx: (Math.random() - 0.5) * 0.5,
+                vy: (Math.random() - 0.5) * 0.5,
+                size: Math.random() * 2 + 1,
+                opacity: Math.random() * 0.5 + 0.2
+            };
+        }
+
+        function initParticles() {
+            particles = [];
+            for (let i = 0; i < 50; i++) {
+                particles.push(createParticle());
+            }
+        }
+
+        function updateParticles() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            particles.forEach(particle => {
+                particle.x += particle.vx;
+                particle.y += particle.vy;
+                
+                if (particle.x < 0 || particle.x > canvas.width) particle.vx *= -1;
+                if (particle.y < 0 || particle.y > canvas.height) particle.vy *= -1;
+                
+                ctx.beginPath();
+                ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(255, 255, 255, ${particle.opacity})`;
+                ctx.fill();
+                
+                particles.forEach(other => {
+                    const dx = particle.x - other.x;
+                    const dy = particle.y - other.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < 100) {
+                        ctx.beginPath();
+                        ctx.moveTo(particle.x, particle.y);
+                        ctx.lineTo(other.x, other.y);
+                        ctx.strokeStyle = `rgba(255, 255, 255, ${0.1 * (1 - distance / 100)})`;
+                        ctx.lineWidth = 0.5;
+                        ctx.stroke();
+                    }
+                });
+            });
+            
+            requestAnimationFrame(updateParticles);
+        }
+
+        resizeCanvas();
+        initParticles();
+        updateParticles();
+        window.addEventListener('resize', () => {
+            resizeCanvas();
+            initParticles();
+        });
+
+        // === LEADERBOARD LOGIKA ===
+const container = document.getElementById('leaderboard');
+const filterBtns = document.querySelectorAll('.filter-btn');
+let currentFilter = 'all';
+
+function setLoading(msg='Učitavam leaderboard...') {
+  container.innerHTML = `
+    <div class="empty-state">
+      <div class="empty-state-icon">⏳</div>
+      <div>${msg}</div>
+    </div>`;
+}
+
+async function fetchLeaderboard(category='all') {
+  setLoading();
+  try {
+    const res = await fetch(`/api/leaderboard?category=${encodeURIComponent(category)}&limit=100`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Greška pri dohvaćanju');
+    const data = await res.json();
+    // Sort by score (ako backend već sortira, može se izbaciti)
+    data.sort((a, b) => b.score - a.score);
+    renderLeaderboard(data);
+  } catch (e) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">⚠️</div>
+        <div>Ne mogu učitati leaderboard.</div>
+      </div>`;
+    console.error(e);
+  }
+}
+
+const CAT_LABELS = {
+  flags: 'Zastave',
+  shapes: 'Oblik Zemlje',
+  cities: 'Glavni Gradovi',
+  continents: 'Kontinenti',
+  rivers: 'Rijeke i Mora'
+};
+const CAT_ICONS = {
+  flags: '🏁',
+  shapes: '🗺️',
+  cities: '🏛️',
+  continents: '🌍',
+  rivers: '🌊'
+};
+
+function renderLeaderboard(data) {
+  const container = document.getElementById('leaderboard');
+
+  if (!data || !data.length) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">🏆</div>
+        <div>Nema rezultata za ovu kategoriju</div>
+        <div style="font-size: 0.8rem; margin-top: 10px; opacity: 0.7;">
+          Budi prvi i ostvari rekord!
+        </div>
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = data.map((player, index) => {
+    const rank = index + 1;
+    let rankClass = '', crown = '';
+    if (rank === 1) { rankClass = 'top1'; crown = '👑'; }
+    else if (rank === 2) { rankClass = 'top2'; crown = '🥈'; }
+    else if (rank === 3) { rankClass = 'top3'; crown = '🥉'; }
+
+    const cat = (player.category || '').toLowerCase();
+    const catLabel = CAT_LABELS[cat] || (player.category || 'Nepoznato');
+    const catIcon  = CAT_ICONS[cat]  || '📚';
+
+    return `
+      <div class="player-row" style="animation-delay:${index * 0.1}s">
+        <div class="rank ${rankClass}">${rank}</div>
+        <div class="player-avatar">${player.avatar || '🎯'}</div>
+        <div class="player-info">
+          <div class="player-name">${player.name}</div>
+          <div class="player-stats">
+            <span class="cat-pill">${catIcon} ${catLabel}</span>
+            <span>🎮 ${player.games} ${Number(player.games) === 1 ? 'igra' : 'igara'}</span>
+            <span>🎯 ${player.accuracy}% tačnost</span>
+          </div>
+        </div>
+        <div class="score">${Number(player.score).toLocaleString()}</div>
+        ${crown ? `<div class="crown">${crown}</div>` : ''}
+      </div>
+    `;
+  }).join('');
+}
+
+// === FILTER LOGIKA ===
+filterBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    filterBtns.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentFilter = btn.dataset.filter;
+    fetchLeaderboard(currentFilter);
+  });
+});
+
+// Init
+fetchLeaderboard('all');
+
+// Auto-refresh svakih 30 sekundi
+setInterval(() => fetchLeaderboard(currentFilter), 30000);
+
+        // CSS animations
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideInRight {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes fadeOut {
+                from { opacity: 1; }
+                to { opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
+
+        console.log('🏆 Leaderboard učitan!');
+        console.log('🔄 Real-time updates aktivni!');
+    </script>
+</body>
+</html>

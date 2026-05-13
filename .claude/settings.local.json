@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c \"import app; print\\('OK'\\)\")",
+      "Bash(python -c ' *)",
+      "Bash(python -c \"import app; print\\('Borders countries:', len\\(app._BORDERS_COUNTRIES\\)\\)\")",
+      "Bash(python -c \"import app; print\\('Borders:', len\\(app._BORDERS_COUNTRIES\\)\\); print\\('CCA3 map:', len\\(app._CCA3_TO_CCA2\\)\\)\")"
+    ]
+  }
+}

@@ -9,3 +9,6 @@ instance/
 .DS_Store
 uploads/
 node_modules/
+venv/
+env/
+*.log

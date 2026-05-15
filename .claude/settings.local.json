@@ -4,7 +4,17 @@
       "Bash(python -c \"import app; print\\('OK'\\)\")",
       "Bash(python -c ' *)",
       "Bash(python -c \"import app; print\\('Borders countries:', len\\(app._BORDERS_COUNTRIES\\)\\)\")",
-      "Bash(python -c \"import app; print\\('Borders:', len\\(app._BORDERS_COUNTRIES\\)\\); print\\('CCA3 map:', len\\(app._CCA3_TO_CCA2\\)\\)\")"
+      "Bash(python -c \"import app; print\\('Borders:', len\\(app._BORDERS_COUNTRIES\\)\\); print\\('CCA3 map:', len\\(app._CCA3_TO_CCA2\\)\\)\")",
+      "Bash(python -m py_compile app.py)",
+      "Bash(python -X utf8)",
+      "Bash(Get-Content \"c:\\\\Users\\\\haris.begovic\\\\Desktop\\\\GEO KVIZ\\\\templates\\\\multiplayer.html\")",
+      "Bash(Measure-Object -Line)",
+      "Read(//mnt/c/Users/haris.begovic/Desktop/GEO KVIZ/templates/**)",
+      "Bash(python3 -c ' *)",
+      "Bash(python app.py)",
+      "Bash(curl -s http://localhost:8000/multiplayer)",
+      "Bash(curl -s http://localhost:8000/api/rooms)",
+      "Bash(curl -s \"http://localhost:8000/api/random_question/6\")"
     ]
   }
 }

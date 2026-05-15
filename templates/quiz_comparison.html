@@ -178,6 +178,7 @@
 <script>
     let current=null,locked=false,score=0,currentQuestion=1,correctCount=0,wrongCount=0;
     let streak=0,wrongList=[],selectedRegion='';
+    let usedPairs=new Set();
     const TOTAL=20,TIME=15;
     let tLeft=TIME,timerId=null;
     const scoreEl=document.getElementById('score'),timerEl=document.getElementById('timer'),msgEl=document.getElementById('msg'),progEl=document.getElementById('progress');
@@ -206,10 +207,15 @@
         document.getElementById('metricIcon').textContent='⚔️';
 
         try{
-            const res=await fetch(`/api/comparison_question?region=${selectedRegion}`);
+            const exclude=encodeURIComponent([...usedPairs].join(','));
+            const res=await fetch(`/api/comparison_question?region=${selectedRegion}&exclude=${exclude}`);
             if(!res.ok)throw new Error(`HTTP ${res.status}`);
             const q=await res.json();
             if(q.error)throw new Error(q.error);
+            if(q.country_a&&q.country_b){
+                const pair=[q.country_a.code.toLowerCase(),q.country_b.code.toLowerCase()].sort().join(':');
+                usedPairs.add(pair);
+            }
             current=q;
             await new Promise(r=>setTimeout(r,200));
 
@@ -298,7 +304,7 @@
     }
 
     function restartQuiz(){
-        current=null;locked=false;score=0;currentQuestion=1;correctCount=0;wrongCount=0;streak=0;wrongList=[];tLeft=TIME;
+        current=null;locked=false;score=0;currentQuestion=1;correctCount=0;wrongCount=0;streak=0;wrongList=[];usedPairs.clear();tLeft=TIME;
         scoreEl.textContent='Score: 0';progEl.textContent='1/20';msgEl.textContent='';msgEl.className='message';
         document.getElementById('nextBtn').style.display='none';
         const fs=document.getElementById('finishScreen');fs.style.display='none';fs.classList.remove('show');

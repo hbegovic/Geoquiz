@@ -487,12 +487,8 @@
                     }, index * 150);
                 });
 
-                // Statičke kartice — dodaj sve redom s animacijom
+                // Statičke kartice — samo Multiplayer i Leaderboard (ostalo je u DB)
                 const staticCards = [
-                    createPopulationCard(),
-                    createBordersCard(),
-                    createGeoMixCard(),
-                    createDuelCard(),
                     createMultiplayerCard(),
                     createLeaderboardCard(),
                 ];
@@ -536,9 +532,16 @@
         /**
          * Stvara DOM element za kategoriju
          */
+        const CATEGORY_URLS = {
+            6: '/quiz/borders',
+            7: '/quiz/population',
+            8: '/quiz/geomix',
+            9: '/quiz/comparison'
+        };
+
         function createCategoryCard(category) {
             const card = document.createElement('a');
-            card.href = `/quiz/${category.id}`;
+            card.href = CATEGORY_URLS[category.id] || `/quiz/${category.id}`;
             card.className = 'category-card';
             card.setAttribute('tabindex', '0');
             

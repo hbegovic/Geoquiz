@@ -335,6 +335,20 @@
             cursor: not-allowed;
         }
         
+        /* === SCREENS === */
+        #screen-lobby,
+        #screen-setup,
+        #screen-waiting,
+        #screen-game,
+        #screen-results {
+            width: 100% !important;
+            min-height: 100% !important;
+        }
+
+        #screen-setup[style*="display: block"] {
+            display: block !important;
+        }
+
         /* === LIVE GAME === */
         .game-container {
             display: none;
@@ -342,7 +356,7 @@
             gap: 30px;
             margin-top: 30px;
         }
-        
+
         .game-container.active {
             display: grid;
         }
@@ -490,93 +504,43 @@
             <h1 class="multiplayer-title">🎮 Multiplayer</h1>
         </div>
 
-        <!-- Game Modes -->
-        <div class="game-modes">
-            <div class="game-mode-card" onclick="selectMode('quick')">
-                <div class="mode-icon">⚡</div>
-                <div class="mode-title">Brza igra</div>
-                <div class="mode-description">Pridruži se postojećoj sobi ili stvori novu za brzu partiju</div>
-                <div class="mode-stats">
-                    <span>👥 2-6 igrača</span>
-                    <span>⏱️ 5 min</span>
+        <!-- Screen: Lobby (Mode Selection) -->
+        <div id="screen-lobby" style="display: block;">
+            <div class="game-modes">
+                <div class="game-mode-card" onclick="selectMode('quick')">
+                    <div class="mode-icon">⚡</div>
+                    <div class="mode-title">Brza igra</div>
+                    <div class="mode-description">Brz kviz sa nasumičnim pitanjima</div>
+                    <div class="mode-stats">
+                        <span>👥 2-4 igrača</span>
+                        <span>⏱️ 15s po pitanju</span>
+                    </div>
                 </div>
-            </div>
-            
-            <div class="game-mode-card" onclick="selectMode('ranked')">
-                <div class="mode-icon">🏆</div>
-                <div class="mode-title">Rankirano</div>
-                <div class="mode-description">Takmiči se za ELO poene i penjaj se na leaderboard</div>
-                <div class="mode-stats">
-                    <span>👥 2-4 igrača</span>
-                    <span>⏱️ 10 min</span>
-                </div>
-            </div>
-            
-            <div class="game-mode-card" onclick="selectMode('tournament')">
-                <div class="mode-icon">🥇</div>
-                <div class="mode-title">Turnir</div>
-                <div class="mode-description">Učestvuj u turnirima sa eliminacijskim sistemom</div>
-                <div class="mode-stats">
-                    <span>👥 8-16 igrača</span>
-                    <span>⏱️ 30 min</span>
-                </div>
-            </div>
-            
-            <div class="game-mode-card" onclick="selectMode('custom')">
-                <div class="mode-icon">⚙️</div>
-                <div class="mode-title">Prilagođeno</div>
-                <div class="mode-description">Stvori sobu sa svojim pravilima i postavkama</div>
-                <div class="mode-stats">
-                    <span>👥 2-10 igrača</span>
-                    <span>⏱️ Prilagodljivo</span>
-                </div>
-            </div>
-        </div>
 
-        <!-- Room Creation -->
-        <div class="room-section">
-            <h2 class="section-title">🚀 Stvori novu sobu</h2>
-            <form class="room-form" onsubmit="createRoom(event)">
-                <div class="form-group">
-                    <label class="form-label">Ime sobe</label>
-                    <input type="text" class="form-input" id="roomName" placeholder="Moja soba..." required>
+                <div class="game-mode-card" onclick="selectMode('ranked')">
+                    <div class="mode-icon">🏆</div>
+                    <div class="mode-title">Rankirano</div>
+                    <div class="mode-description">Takmiči se za rangove i poene</div>
+                    <div class="mode-stats">
+                        <span>👥 2-4 igrača</span>
+                        <span>⏱️ 20s po pitanju</span>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label class="form-label">Kategorija</label>
-                    <select class="form-select" id="roomCategory">
-                        <option value="all">Sve kategorije</option>
-                        <option value="flags">Zastave</option>
-                        <option value="cities">Glavni gradovi</option>
-                        <option value="shapes">Oblik zemlje</option>
-                        <option value="continents">Kontinenti</option>
-                        <option value="rivers">Rijeke i mora</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Max igrača</label>
-                    <select class="form-select" id="maxPlayers">
-                        <option value="2">2</option>
-                        <option value="4" selected>4</option>
-                        <option value="6">6</option>
-                        <option value="8">8</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Vreme po pitanju</label>
-                    <select class="form-select" id="timeLimit">
-                        <option value="10">10 sekundi</option>
-                        <option value="15" selected>15 sekundi</option>
-                        <option value="20">20 sekundi</option>
-                        <option value="30">30 sekundi</option>
-                    </select>
-                </div>
-            </form>
-            <button class="create-room-btn" onclick="createRoom()">🎯 Stvori sobu</button>
-        </div>
 
-        <!-- Active Rooms -->
-        <div class="room-section">
-            <h2 class="section-title">🌐 Aktivne sobe</h2>
+                <div class="game-mode-card" onclick="selectMode('custom')">
+                    <div class="mode-icon">⚙️</div>
+                    <div class="mode-title">Prilagođeno</div>
+                    <div class="mode-description">Odaberi svoju kategoriju i pravila</div>
+                    <div class="mode-stats">
+                        <span>👥 2-8 igrača</span>
+                        <span>⏱️ Prilagodljivo</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Browse Rooms -->
+            <div class="room-section">
+                <h2 class="section-title">🌐 Pridruži se sobi</h2>
             <div class="rooms-list" id="roomsList">
                 <!-- Demo sobe -->
                 <div class="room-card">
@@ -619,3 +583,688 @@
                             <span>📂 Sve kategorije</span>
                             <span>⏱️ 20s po pitanju</span>
                         </div>
+                    </div>
+                    <div class="room-status">
+                        <div class="status-indicator status-waiting"></div>
+                        <span>Čeka igrače</span>
+                    </div>
+                    <button class="join-btn" onclick="joinRoom('room3')">Pridruji se</button>
+                </div>
+            </div>
+            </div>
+        </div>
+
+        <!-- Screen: Setup (Create Room) -->
+        <div id="screen-setup" style="display: none;">
+            <div class="room-section">
+                <h2 class="section-title" id="setupTitle">⚡ Brza igra</h2>
+                <div style="padding: 20px;">
+                    <div class="form-group">
+                        <label class="form-label">Tvoje ime:</label>
+                        <input type="text" class="form-input" id="playerNameInput" placeholder="Unesi svoje ime..." required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Kategorija:</label>
+                        <select class="form-select" id="setupCategory">
+                            <option value="1">🚩 Zastave</option>
+                            <option value="3">🏛️ Glavni gradovi</option>
+                            <option value="2">🗺️ Oblik zemlje</option>
+                            <option value="7">👥 Broj Stanovnika</option>
+                        </select>
+                    </div>
+                    <div id="customSettings" style="display: none;">
+                        <div class="form-group">
+                            <label class="form-label">Max igrača:</label>
+                            <select class="form-select" id="setupMaxPlayers">
+                                <option value="2">2</option>
+                                <option value="4" selected>4</option>
+                                <option value="6">6</option>
+                                <option value="8">8</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Vrijeme po pitanju:</label>
+                            <select class="form-select" id="setupTimeLimit">
+                                <option value="10">10 sekundi</option>
+                                <option value="15" selected>15 sekundi</option>
+                                <option value="20">20 sekundi</option>
+                                <option value="30">30 sekundi</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 15px; margin-top: 30px;">
+                        <button class="create-room-btn" onclick="createRoomFromSetup()" style="flex: 1;">🚀 Kreni</button>
+                        <button class="create-room-btn" onclick="backToLobby()" style="flex: 1; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);">← Nazad</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Waiting Room Screen -->
+        <div id="screen-waiting" style="display: none;">
+            <div class="room-section">
+                <h2 class="section-title">📍 Čekanje početka igre</h2>
+                <div style="text-align: center; padding: 40px;">
+                    <div style="font-size: 3rem; margin-bottom: 20px;">🎮</div>
+                    <h3 style="font-size: 1.8rem; margin-bottom: 10px;" id="waitingRoomName">Soba</h3>
+                    <p id="waitingRoomCode" style="font-size: 1.2rem; opacity: 0.8; margin-bottom: 30px;">Kod: XXXXXX</p>
+
+                    <div style="background: rgba(255,255,255,0.05); padding: 30px; border-radius: 16px; margin-bottom: 30px;">
+                        <p style="margin-bottom: 20px; font-weight: 600;">Igrači u sobi:</p>
+                        <div id="waitingPlayersList" style="display: grid; gap: 10px;"></div>
+                    </div>
+
+                    <div id="startGameContainer" style="display: none;">
+                        <button class="create-room-btn" onclick="startGame()">▶️ Pokreni igru</button>
+                    </div>
+                    <p id="waitingMessage" style="opacity: 0.8; margin-top: 20px;">Čekanje da se priključe drugi igrači...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Game Screen -->
+        <div id="screen-game" style="display: none;">
+            <div class="game-container active">
+                <div class="game-area">
+                    <div style="text-align: center; margin-bottom: 30px;">
+                        <div style="font-size: 0.9rem; color: #10b981; margin-bottom: 10px;">Pitanje <span id="questionNum">1</span>/20</div>
+                        <div id="timerBar" style="width: 100%; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden;">
+                            <div id="timerFill" style="height: 100%; background: linear-gradient(90deg, #10b981, #059669); width: 100%; transition: width 0.1s linear;"></div>
+                        </div>
+                    </div>
+
+                    <div id="questionImage" style="text-align: center; margin-bottom: 30px;">
+                        <img id="flagImg" src="" alt="Flag" style="max-width: 100%; height: 200px; object-fit: contain; border-radius: 12px;">
+                    </div>
+
+                    <div id="questionText" style="text-align: center; font-size: 1.3rem; font-weight: 600; margin-bottom: 30px; color: #10b981;">
+                        Koja je ovo država?
+                    </div>
+
+                    <!-- Multiple choice -->
+                    <div id="optionsContainer" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;"></div>
+
+                    <!-- Population input -->
+                    <div id="populationContainer" style="display: none; text-align: center;">
+                        <p style="opacity: 0.6; margin-bottom: 15px; font-size: 0.9rem;">Unesite broj stanovnika <strong>u milionima</strong> — npr. <em>3.5</em> za 3.5 miliona, <em>83</em> za 83 miliona</p>
+                        <div style="display: flex; gap: 12px; justify-content: center; max-width: 400px; margin: 0 auto;">
+                            <input id="populationInput" type="number" min="0.001" step="any" placeholder="npr. 3.5"
+                                style="flex: 1; padding: 14px 18px; border-radius: 14px; border: 2px solid rgba(255,255,255,0.25); background: rgba(255,255,255,0.1); color: #fff; font-size: 1.3rem; font-weight: 700; text-align: center; outline: none;">
+                            <button onclick="submitPopulationAnswer()"
+                                style="padding: 14px 24px; border-radius: 14px; border: none; background: linear-gradient(45deg, #7c3aed, #4f46e5); color: #fff; font-size: 1rem; font-weight: 700; cursor: pointer;">
+                                Potvrdi ✓
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="answerStatus" style="text-align: center; margin-top: 20px; font-weight: 600; display: none;"></div>
+                </div>
+
+                <div class="players-panel">
+                    <div class="players-title">🏆 Skor</div>
+                    <div id="scoreboardPlayers"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Screen -->
+        <div id="screen-results" style="display: none;">
+            <div class="room-section">
+                <h2 class="section-title">🎉 Rezultati igre</h2>
+                <div style="padding: 40px;">
+                    <div id="resultsPodium" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 20px; margin-bottom: 40px; text-align: center;">
+                        <!-- Podium will be inserted here -->
+                    </div>
+
+                    <div style="background: rgba(255,255,255,0.05); padding: 30px; border-radius: 16px;">
+                        <h3 style="margin-bottom: 20px; color: #10b981;">📊 Konačan ranking</h3>
+                        <div id="resultsTable"></div>
+                    </div>
+
+                    <div style="text-align: center; margin-top: 30px;">
+                        <a href="/multiplayer" class="create-room-btn" style="text-decoration: none; display: inline-block;">← Nazad na multiplayer</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script>
+        // ===== STATE =====
+        let socket = null;
+        let currentRoom = null;
+        let playerName = '';
+        let myScore = 0;
+        let answeredThisQuestion = false;
+        let currentQuestion = null;
+        let isHost = false;
+        let players = {};
+        let allRooms = [];
+        let timerInterval = null;
+
+        // ===== PARTICLES ANIMATION =====
+        function initParticles() {
+            const canvas = document.getElementById('particles-canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            let particles = [];
+            for (let i = 0; i < 50; i++) {
+                particles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    r: Math.random() * 2 + 1,
+                    dx: (Math.random() - 0.5) * 2,
+                    dy: (Math.random() - 0.5) * 2,
+                    opacity: Math.random() * 0.5 + 0.1
+                });
+            }
+
+            function animate() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+
+                particles.forEach(p => {
+                    ctx.globalAlpha = p.opacity;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    p.x += p.dx;
+                    p.y += p.dy;
+
+                    if (p.x < 0) p.x = canvas.width;
+                    if (p.x > canvas.width) p.x = 0;
+                    if (p.y < 0) p.y = canvas.height;
+                    if (p.y > canvas.height) p.y = 0;
+                });
+
+                requestAnimationFrame(animate);
+            }
+            animate();
+        }
+
+        // ===== SOCKET.IO =====
+        function initSocket() {
+            socket = io();
+
+            socket.on('connect', () => {
+                console.log('Connected to server');
+                loadRooms();
+            });
+
+            socket.on('room_state', (data) => {
+                console.log('Room state:', data);
+                currentRoom = data;
+                isHost = (data.host_sid === socket.id);
+                players = data.players;
+                myScore = data.players[socket.id]?.score || 0;
+                showWaitingScreen();
+                updateWaitingPlayersList();
+            });
+
+            socket.on('player_list', (data) => {
+                console.log('Player list updated:', data);
+                players = data;
+                updateWaitingPlayersList();
+                updateScoreboard();
+            });
+
+            socket.on('game_started', (data) => {
+                console.log('Game started:', data);
+                currentRoom = data;
+                showGameScreen();
+            });
+
+            socket.on('new_question', (data) => {
+                console.log('New question:', data);
+                currentQuestion = data;
+                displayQuestion(data);
+                startTimerBar(currentRoom.time_per_q);
+            });
+
+            socket.on('answer_ack', (data) => {
+                answeredThisQuestion = true;
+                const status = document.getElementById('answerStatus');
+                status.textContent = '✓ Odgovorili ste';
+                status.style.color = '#10b981';
+                status.style.display = 'block';
+                disableAllOptions();
+            });
+
+            socket.on('question_result', (data) => {
+                console.log('Question result:', data);
+                currentRoom = data.room_state;
+                players = data.room_state.players;
+
+                const correctAnswer = data.correct_answer;
+                const myAnswer = data.my_answer;
+                const pointsEarned = data.points_earned || 0;
+                const isPopulation = currentQuestion && currentQuestion.type === 'population';
+
+                const status = document.getElementById('answerStatus');
+
+                if (isPopulation) {
+                    const real = parseFloat(correctAnswer);
+                    const guess = parseFloat(myAnswer);
+                    function fmtPop(n) {
+                        if (n >= 1000) return `${(n/1000).toFixed(2)} mlrd`;
+                        if (n >= 1) return `${n % 1 === 0 ? n : n.toFixed(1)} mil`;
+                        return `${Math.round(n * 1000)} hil`;
+                    }
+                    if (myAnswer) {
+                        const ratio = Math.max(guess/real, real/guess);
+                        const pct = Math.round((ratio-1)*100);
+                        const emoji = ratio <= 1.05 ? '🎯' : ratio <= 1.15 ? '🔥' : ratio <= 1.3 ? '👍' : ratio <= 1.5 ? '😊' : '😬';
+                        status.innerHTML = `${emoji} Tvoj: <strong>${fmtPop(guess)}</strong> | Tačno: <strong style="color:#10b981">${fmtPop(real)}</strong> | Greška: ${pct}% | +${pointsEarned} bodova`;
+                    } else {
+                        status.innerHTML = `⏰ Nisi odgovorio. Tačno: <strong style="color:#10b981">${fmtPop(real)}</strong>`;
+                    }
+                    status.style.color = '#fff';
+                } else {
+                    highlightCorrectAnswer(correctAnswer, myAnswer);
+                    if (myAnswer && myAnswer.toLowerCase() === correctAnswer.toLowerCase()) {
+                        status.textContent = `✓ Točno! +${pointsEarned} bodova`;
+                        status.style.color = '#10b981';
+                    } else if (myAnswer) {
+                        status.textContent = `✗ Krivo. Točan odgovor: ${correctAnswer}`;
+                        status.style.color = '#ef4444';
+                    } else {
+                        status.textContent = `⏰ Nisi odgovorio. Točno: ${correctAnswer}`;
+                        status.style.color = '#fbbf24';
+                    }
+                }
+                status.style.display = 'block';
+
+                myScore = data.room_state.players[socket.id]?.score || 0;
+                updateScoreboard();
+            });
+
+            socket.on('game_ended', (data) => {
+                console.log('Game ended:', data);
+                currentRoom = data.room_state;
+                showResultsScreen(data.rankings);
+            });
+
+            socket.on('error', (msg) => {
+                console.error('Socket error:', msg);
+                alert('Greška: ' + msg);
+            });
+        }
+
+        // ===== UI SCREENS =====
+        let currentMode = 'quick';
+
+        function showLobby() {
+            document.getElementById('screen-lobby').style.display = 'block';
+            document.getElementById('screen-setup').style.display = 'none';
+            document.getElementById('screen-waiting').style.display = 'none';
+            document.getElementById('screen-game').style.display = 'none';
+            document.getElementById('screen-results').style.display = 'none';
+            loadRooms();
+        }
+
+        function selectMode(mode) {
+            console.log('selectMode called:', mode);
+            currentMode = mode;
+            const titles = {
+                'quick': '⚡ Brza igra',
+                'ranked': '🏆 Rankirano',
+                'custom': '⚙️ Prilagođeno'
+            };
+            document.getElementById('setupTitle').textContent = titles[mode];
+            document.getElementById('customSettings').style.display = mode === 'custom' ? 'block' : 'none';
+
+            console.log('Hiding lobby, showing setup');
+            document.getElementById('screen-lobby').style.display = 'none';
+            document.getElementById('screen-setup').style.display = 'block';
+            document.getElementById('playerNameInput').focus();
+            console.log('Setup shown');
+        }
+
+        function backToLobby() {
+            showLobby();
+        }
+
+        function createRoomFromSetup() {
+            const playerName = document.getElementById('playerNameInput').value;
+            if (!playerName) {
+                alert('Unesi svoje ime!');
+                return;
+            }
+
+            const cat = document.getElementById('setupCategory').value;
+            const categoryId = cat === 'null' ? null : parseInt(cat);
+
+            let config = {
+                quick: { max: 4, time: 15 },
+                ranked: { max: 4, time: 20 },
+                custom: { max: parseInt(document.getElementById('setupMaxPlayers').value), time: parseInt(document.getElementById('setupTimeLimit').value) }
+            };
+
+            const cfg = config[currentMode];
+
+            socket.emit('create_room', {
+                name: `${playerName}'s game`,
+                mode: currentMode,
+                category_id: categoryId,
+                max_players: cfg.max,
+                time_per_q: cfg.time,
+                player_name: playerName
+            });
+        }
+
+        function showWaitingScreen() {
+            document.getElementById('screen-lobby').style.display = 'none';
+            document.getElementById('screen-setup').style.display = 'none';
+            document.getElementById('screen-waiting').style.display = 'block';
+            document.getElementById('screen-game').style.display = 'none';
+            document.getElementById('screen-results').style.display = 'none';
+
+            document.getElementById('waitingRoomName').textContent = currentRoom.name;
+            document.getElementById('waitingRoomCode').textContent = `Kod: ${currentRoom.id}`;
+
+            const startBtn = document.getElementById('startGameContainer');
+            startBtn.style.display = isHost ? 'block' : 'none';
+
+            const msg = document.getElementById('waitingMessage');
+            msg.textContent = isHost
+                ? `Čekanje minimalno 2 igrača (trenutno: ${Object.keys(players).length})`
+                : `Čekanje početka igre od hosta...`;
+        }
+
+        function showGameScreen() {
+            document.getElementById('screen-lobby').style.display = 'none';
+            document.getElementById('screen-setup').style.display = 'none';
+            document.getElementById('screen-waiting').style.display = 'none';
+            document.getElementById('screen-game').style.display = 'block';
+            document.getElementById('screen-results').style.display = 'none';
+        }
+
+        function showResultsScreen(rankings) {
+            document.getElementById('screen-lobby').style.display = 'none';
+            document.getElementById('screen-setup').style.display = 'none';
+            document.getElementById('screen-waiting').style.display = 'none';
+            document.getElementById('screen-game').style.display = 'none';
+            document.getElementById('screen-results').style.display = 'block';
+
+            // Podium
+            const podium = document.getElementById('resultsPodium');
+            podium.innerHTML = '';
+            rankings.slice(0, 3).forEach((p, idx) => {
+                const medals = ['🥇', '🥈', '🥉'];
+                const podiumDiv = document.createElement('div');
+                podiumDiv.style.cssText = 'padding: 20px; background: rgba(255,255,255,0.05); border-radius: 12px;';
+                podiumDiv.innerHTML = `
+                    <div style="font-size: 2.5rem; margin-bottom: 10px;">${medals[idx]}</div>
+                    <div style="font-weight: 600; margin-bottom: 5px;">${p.name}</div>
+                    <div style="font-size: 1.3rem; color: #10b981;">${p.score}</div>
+                `;
+                podium.appendChild(podiumDiv);
+            });
+
+            // Rankings table
+            const table = document.getElementById('resultsTable');
+            table.innerHTML = '';
+            rankings.forEach((p, idx) => {
+                const row = document.createElement('div');
+                row.style.cssText = 'display: flex; justify-content: space-between; padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);';
+                row.innerHTML = `
+                    <span style="font-weight: 600;">${idx + 1}. ${p.name}</span>
+                    <span style="color: #10b981; font-weight: 600;">${p.score}</span>
+                `;
+                table.appendChild(row);
+            });
+        }
+
+        // ===== QUESTION DISPLAY =====
+        function displayQuestion(q) {
+            answeredThisQuestion = false;
+
+            const answerStatus = document.getElementById('answerStatus');
+            answerStatus.style.display = 'none';
+            answerStatus.textContent = '';
+
+            document.getElementById('questionNum').textContent = currentRoom.current_q_idx + 1;
+
+            if (q.image_path) {
+                document.getElementById('questionImage').style.display = 'block';
+                document.getElementById('flagImg').src = '/static/' + q.image_path;
+            } else {
+                document.getElementById('questionImage').style.display = 'none';
+            }
+
+            const isPopulation = q.type === 'population';
+
+            // Tekst pitanja
+            if (isPopulation) {
+                document.getElementById('questionText').textContent = `👥 Koliko stanovnika ima ${q.country || 'ova država'}?`;
+            } else {
+                const questionTexts = { 1: '🚩 Koja je ovo država?', 2: '🗺️ Koji je oblik ove zemlje?', 3: '🏛️ Koji je glavni grad ove zemlje?' };
+                document.getElementById('questionText').textContent = questionTexts[currentRoom.category_id] || '❓ Što je ovo?';
+            }
+
+            // Prikaži ili input ili opcije
+            const optsCont = document.getElementById('optionsContainer');
+            const popCont = document.getElementById('populationContainer');
+            const popInput = document.getElementById('populationInput');
+
+            if (isPopulation) {
+                optsCont.style.display = 'none';
+                popCont.style.display = 'block';
+                popInput.value = '';
+                popInput.disabled = false;
+                setTimeout(() => popInput.focus(), 100);
+
+                popInput.onkeydown = (e) => { if (e.key === 'Enter') submitPopulationAnswer(); };
+            } else {
+                optsCont.style.display = 'grid';
+                popCont.style.display = 'none';
+            }
+
+            const opts = document.getElementById('optionsContainer');
+            opts.innerHTML = '';
+            q.options.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn';
+                btn.textContent = opt;
+                btn.style.cssText = `
+                    padding: 15px;
+                    background: rgba(255,255,255,0.08);
+                    border: 2px solid rgba(255,255,255,0.2);
+                    border-radius: 12px;
+                    color: white;
+                    cursor: pointer;
+                    font-weight: 600;
+                    transition: all 0.3s;
+                    opacity: 1;
+                `;
+                btn.onmouseover = () => {
+                    if (!answeredThisQuestion) btn.style.background = 'rgba(255,255,255,0.15)';
+                };
+                btn.onmouseout = () => {
+                    if (!answeredThisQuestion) btn.style.background = 'rgba(255,255,255,0.08)';
+                };
+                btn.onclick = () => submitAnswer(opt);
+                opts.appendChild(btn);
+            });
+        }
+
+        function submitAnswer(answer) {
+            if (answeredThisQuestion || !currentQuestion) return;
+            answeredThisQuestion = true;
+            socket.emit('submit_answer', {
+                room_id: currentRoom.id,
+                answer: answer,
+                time_used: Date.now() - currentRoom.q_start_time * 1000
+            });
+        }
+
+        function submitPopulationAnswer() {
+            if (answeredThisQuestion) return;
+            const val = document.getElementById('populationInput').value;
+            if (!val || parseFloat(val) <= 0) {
+                document.getElementById('populationInput').style.borderColor = '#ef4444';
+                setTimeout(() => { document.getElementById('populationInput').style.borderColor = 'rgba(255,255,255,0.25)'; }, 600);
+                return;
+            }
+            document.getElementById('populationInput').disabled = true;
+            submitAnswer(val);
+        }
+
+        function highlightCorrectAnswer(correct, myAnswer) {
+            const buttons = document.querySelectorAll('.option-btn');
+            buttons.forEach(btn => {
+                if (btn.textContent === correct) {
+                    btn.style.borderColor = '#10b981';
+                    btn.style.background = 'rgba(16, 185, 129, 0.2)';
+                } else if (btn.textContent === myAnswer && myAnswer !== correct) {
+                    btn.style.borderColor = '#ef4444';
+                    btn.style.background = 'rgba(239, 68, 68, 0.2)';
+                }
+                btn.style.cursor = 'not-allowed';
+            });
+        }
+
+        function disableAllOptions() {
+            document.querySelectorAll('.option-btn').forEach(btn => {
+                btn.style.cursor = 'not-allowed';
+                btn.style.opacity = '0.6';
+            });
+        }
+
+        // ===== TIMER =====
+        function startTimerBar(duration) {
+            if (timerInterval) clearInterval(timerInterval);
+
+            const bar = document.getElementById('timerFill');
+            bar.style.width = '100%';
+            bar.style.background = 'linear-gradient(90deg, #10b981, #059669)';
+            const startTime = Date.now();
+
+            timerInterval = setInterval(() => {
+                const elapsed = (Date.now() - startTime) / 1000;
+                const remaining = Math.max(0, duration - elapsed);
+                const pct = (remaining / duration) * 100;
+
+                bar.style.width = pct + '%';
+
+                if (remaining <= 5) {
+                    bar.style.background = 'linear-gradient(90deg, #ef4444, #dc2626)';
+                } else {
+                    bar.style.background = 'linear-gradient(90deg, #10b981, #059669)';
+                }
+
+                if (remaining <= 0) {
+                    clearInterval(timerInterval);
+                }
+            }, 50);
+        }
+
+        // ===== SCOREBOARD =====
+        function updateScoreboard() {
+            const sb = document.getElementById('scoreboardPlayers');
+            sb.innerHTML = '';
+
+            const sorted = Object.values(players).sort((a, b) => b.score - a.score);
+            sorted.forEach(p => {
+                const item = document.createElement('div');
+                item.className = 'player-item' + (p.sid === socket.id ? ' current-player' : '');
+                item.innerHTML = `
+                    <div class="player-avatar">${p.name.charAt(0).toUpperCase()}</div>
+                    <div class="player-details">
+                        <div class="player-name">${p.name}</div>
+                        <div class="player-score">${p.score} bodova</div>
+                    </div>
+                `;
+                sb.appendChild(item);
+            });
+        }
+
+        // ===== ROOM MANAGEMENT =====
+        async function loadRooms() {
+            try {
+                const res = await fetch('/api/rooms');
+                allRooms = await res.json();
+                const list = document.getElementById('roomsList');
+                list.innerHTML = '';
+
+                const catNames = {
+                    null: 'Sve kategorije',
+                    1: '🚩 Zastave',
+                    2: '🗺️ Oblik zemlje',
+                    3: '🏛️ Glavni gradovi',
+                    6: '🌍 Granice',
+                    7: '👥 Stanovništvo',
+                    8: '🎯 GeoMix',
+                    9: '📊 Poređenje'
+                };
+
+                allRooms.forEach(room => {
+                    const card = document.createElement('div');
+                    card.className = 'room-card';
+                    const catName = catNames[room.category_id] || 'Sve kategorije';
+                    const status = room.status === 'waiting' ? '🟡 Čeka igrače' : room.status === 'playing' ? '🔴 U igri' : '⚫ Završena';
+                    const playerCount = Object.keys(room.players).length;
+                    const isFull = playerCount >= room.max_players;
+
+                    card.innerHTML = `
+                        <div class="room-info">
+                            <div class="room-name">${room.name}</div>
+                            <div class="room-details">
+                                <span>👥 ${playerCount}/${room.max_players} igrača</span>
+                                <span>📂 ${catName}</span>
+                                <span>⏱️ ${room.time_per_q}s po pitanju</span>
+                            </div>
+                        </div>
+                        <div class="room-status">
+                            <span>${status}</span>
+                        </div>
+                        <button class="join-btn" onclick="joinRoom('${room.id}')" ${room.status !== 'waiting' || isFull ? 'disabled' : ''}>
+                            ${isFull ? 'Puna' : 'Pridruji se'}
+                        </button>
+                    `;
+                    list.appendChild(card);
+                });
+            } catch (e) {
+                console.error('Error loading rooms:', e);
+            }
+        }
+
+
+        function joinRoom(roomId) {
+            playerName = prompt('Unesi svoje ime:');
+            if (!playerName) return;
+
+            socket.emit('join_room', {
+                room_id: roomId,
+                player_name: playerName
+            });
+        }
+
+        function updateWaitingPlayersList() {
+            const list = document.getElementById('waitingPlayersList');
+            list.innerHTML = '';
+            Object.values(players).forEach(p => {
+                const item = document.createElement('div');
+                item.style.cssText = 'padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px;';
+                item.innerHTML = `<span>${p.name}</span> <span style="opacity: 0.6;">${p.score || 0} bodova</span>`;
+                list.appendChild(item);
+            });
+        }
+
+        function startGame() {
+            socket.emit('start_game', { room_id: currentRoom.id });
+        }
+
+        // ===== INIT =====
+        document.addEventListener('DOMContentLoaded', () => {
+            initParticles();
+            initSocket();
+            showLobby();
+        });
+    </script>
+</body>
+</html>

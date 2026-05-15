@@ -217,6 +217,7 @@
         let currentQuestion = 1, streak = 0;
         let allAnswers = [];   // {country, flag_url, emoji, real, guess, ratio}
         let selectedRegion = '';
+        let usedCodes = new Set();
 
         const TOTAL_QUESTIONS = 20;
         const TIME_LIMIT = 60;
@@ -256,11 +257,13 @@
             `;
 
             try {
-                const res = await fetch(`/api/population_question?region=${selectedRegion}`);
+                const exclude = encodeURIComponent([...usedCodes].join(','));
+                const res = await fetch(`/api/population_question?region=${selectedRegion}&exclude=${exclude}`);
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const q = await res.json();
                 if (q.error) throw new Error(q.error);
 
+                if (q.country_code) usedCodes.add(q.country_code);
                 current = q;
                 await new Promise(r => setTimeout(r, 200));
 
@@ -461,6 +464,7 @@
         function restartQuiz() {
             current = null; locked = false; score = 0;
             currentQuestion = 1; streak = 0; allAnswers = [];
+            usedCodes.clear();
             tLeft = TIME_LIMIT;
 
             scoreEl.textContent = 'Score: 0';

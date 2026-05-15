@@ -879,23 +879,12 @@
                 `;
                 document.getElementById('options').innerHTML = '';
 
-                // Pokušaj da učitaš novo pitanje (maksimalno 10 pokušaja da izbegneš beskonačnu petlju)
-                let attempts = 0;
-                let q = null;
-                
-                do {
-                    const res = await fetch(`/api/random_question/${categoryId}?region=${selectedRegion}`);
-                    if (!res.ok) throw new Error('Greška pri učitavanju pitanja');
-                    
-                    q = await res.json();
-                    attempts++;
-                } while (usedQuestionIds.has(q.id) && attempts < 10);
+                // Server filtrira već viđena pitanja preko `exclude` parametra
+                const exclude = encodeURIComponent([...usedQuestionIds].join(','));
+                const res = await fetch(`/api/random_question/${categoryId}?region=${selectedRegion}&exclude=${exclude}`);
+                if (!res.ok) throw new Error('Greška pri učitavanju pitanja');
+                const q = await res.json();
 
-                // Ako nakon 10 pokušaja i dalje imamo isto pitanje, nastavi (bolje duplikat nego greška)
-                if (usedQuestionIds.has(q.id)) {
-                    console.warn('Moguće je da se pitanje ponovi - nema dovoljno različitih pitanja');
-                }
-                
                 usedQuestionIds.add(q.id);
                 current = q;
 

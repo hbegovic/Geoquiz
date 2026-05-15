@@ -3,8 +3,12 @@ import sqlite3
 import json
 import random
 import re
-from flask import Flask, jsonify, render_template, request, url_for
-from flask_socketio import SocketIO
+import time
+import string
+import uuid
+from datetime import datetime
+from flask import Flask, jsonify, render_template, request, url_for, session
+from flask_socketio import SocketIO, emit, join_room, leave_room, rooms
 from werkzeug.utils import secure_filename
 from functools import wraps
 from flask import redirect
@@ -17,7 +21,109 @@ ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN", "promijeni_me")
 # --------- KONFIG ---------
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'tajna_za_kviz'
-socketio = SocketIO(app)
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+
+# --------- MULTIPLAYER ---------
+ROOMS = {}  # {room_id: {id, name, mode, category_id, max_players, time_per_q, total_questions,
+            #            status, host_sid, players: {}, questions: [], current_q_idx, q_start_time}}
+
+def generate_room_id():
+    """Generiši 6-karakterni room kod."""
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+
+POPULATION_CATEGORY_ID = 7
+
+def generate_questions_for_room(category_id, n=20):
+    """Generiši N pitanja za multiplayer sobu."""
+    conn = get_db()
+    questions = []
+
+    # Posebna logika za Broj Stanovnika
+    if category_id == POPULATION_CATEGORY_ID:
+        all_codes = list(COUNTRY_POPULATION.keys())
+        random.shuffle(all_codes)
+        for code in all_codes[:n]:
+            pop = COUNTRY_POPULATION[code]
+            name = ALIASES.get(code, code.upper())
+            questions.append({
+                'id': code,
+                'type': 'population',
+                'image_path': f'flags/{code}.svg',
+                'country': name,
+                'population': pop,
+                'options': [],
+                'correct': str(pop),
+            })
+        return questions
+
+    asked_ids = set()
+
+    # Za flags/outlines: učitaj sve nazive za distraktore
+    if category_id in (CATEGORY_FLAGS_ID, CATEGORY_OUTLINES_ID):
+        all_names_rows = conn.execute(
+            'SELECT DISTINCT correct_answer FROM questions WHERE category_id=?',
+            (category_id,)
+        ).fetchall()
+        all_names = [(r['correct_answer'] or '').strip() for r in all_names_rows if r['correct_answer']]
+
+    for _ in range(n * 3):
+        if len(questions) >= n:
+            break
+        try:
+            q = conn.execute(
+                f'SELECT id, image_path, options, correct_answer FROM questions '
+                f'WHERE category_id=? AND id NOT IN ({",".join("?" * len(asked_ids) if asked_ids else "0")})'
+                f'ORDER BY RANDOM() LIMIT 1',
+                (category_id, *list(asked_ids)) if asked_ids else (category_id,)
+            ).fetchone()
+            if not q:
+                break
+            asked_ids.add(q['id'])
+
+            correct = (q['correct_answer'] or '').strip()
+            if not correct:
+                continue
+
+            raw_path = (q['image_path'] or '').strip().lstrip('/')
+
+            if category_id in (CATEGORY_FLAGS_ID, CATEGORY_OUTLINES_ID):
+                wrongs = [x for x in all_names if x != correct]
+                random.shuffle(wrongs)
+                options = [correct] + wrongs[:3]
+                random.shuffle(options)
+            else:
+                try:
+                    options = json.loads(q['options']) if isinstance(q['options'], str) else (q['options'] or [])
+                    if not isinstance(options, list):
+                        options = [correct]
+                except:
+                    options = [correct]
+
+            questions.append({
+                'id': q['id'],
+                'type': 'multiple_choice',
+                'image_path': raw_path,
+                'options': options,
+                'correct': correct,
+            })
+        except Exception as e:
+            app.logger.error(f"Error generating question: {e}")
+            continue
+
+    return questions
+
+def calculate_score(time_used, time_limit, is_correct):
+    """Izračunaj bodove: 100 za točan + do 50 speed bonusa."""
+    if not is_correct:
+        return 0
+    base = 100
+    if time_used <= 1:
+        return base + 50
+    if time_used >= time_limit:
+        return base
+    # Interpolate: time=1 → 50, time=time_limit → 0
+    speed_bonus = max(0, int(50 * (1 - (time_used - 1) / (time_limit - 1))))
+    return base + speed_bonus
 
 DB_PATH = 'geo_quiz.db'
 UPLOAD_FOLDER = 'static'
@@ -663,6 +769,11 @@ try:
 except Exception as _e:
     app.logger.warning("countries.json nije pronadjen ili je nevazeci: %s", _e)
 
+# Obrnuta mapa: capital → country code (za regionalne distraktore)
+_CAPITAL_TO_CCA2 = {}
+for _cca2, _capital in _CCA2_TO_CAPITAL.items():
+    _CAPITAL_TO_CCA2[_capital.lower()] = _cca2
+
 # --------- STRANICE ---------
 @app.route('/')
 def home():
@@ -742,8 +853,16 @@ def api_submit_score():
     player_name = (session.get('user') or {}).get('username', 'Gost')
     user_id     = (session.get('user') or {}).get('id')
 
-    # uskladi sa filterima na frontend-u ('flags' / 'shapes')
-    _cat_map = {CATEGORY_FLAGS_ID: 'flags', CATEGORY_OUTLINES_ID: 'shapes', 6: 'borders'}
+    # Mapiraj category_id na filter nazive za leaderboard
+    _cat_map = {
+        CATEGORY_FLAGS_ID: 'flags',         # 1
+        CATEGORY_OUTLINES_ID: 'shapes',    # 2
+        3: 'cities',                       # Glavni Gradovi
+        6: 'borders',                      # Granice Država
+        7: 'population',                   # Broj Stanovnika
+        8: 'geomix',                       # Geo Ekspert
+        9: 'comparison',                   # Geo Duel
+    }
     category_name = _cat_map.get(category_id, f'category_{category_id}')
 
     try:
@@ -944,16 +1063,36 @@ def random_question(category_id):
         like_clauses = ' OR '.join(f"image_path LIKE '%/{c}.%'" for c in codes)
         where += f' AND ({like_clauses})'
 
+    # Izuzmi već viđena pitanja
+    exclude_raw = request.args.get('exclude', '').strip()
+    exclude_ids = [int(x) for x in exclude_raw.split(',') if x.strip().isdigit()]
+    where_excl = where
+    params_excl = list(params)
+    if exclude_ids:
+        placeholders = ','.join('?' * len(exclude_ids))
+        where_excl += f' AND id NOT IN ({placeholders})'
+        params_excl += exclude_ids
+
     q = conn.execute(
         f'''SELECT id, category_id, image_path, options, correct_answer
             FROM questions
-            {where}
+            {where_excl}
             ORDER BY RANDOM() LIMIT 1''',
-        params
+        params_excl
     ).fetchone()
 
+    # Fallback ako su sva pitanja iscrpljena
+    if not q and exclude_ids:
+        q = conn.execute(
+            f'''SELECT id, category_id, image_path, options, correct_answer
+                FROM questions
+                {where}
+                ORDER BY RANDOM() LIMIT 1''',
+            params
+        ).fetchone()
+
     if not q:
-        return jsonify({"error": "Nema pitanja (sa slikom) za ovu kategoriju"}), 404
+        return jsonify({"error": "Nema pitanja za ovu kategoriju"}), 404
 
     # ispravan naziv
     correct = (q['correct_answer'] or '').strip()
@@ -985,13 +1124,11 @@ def random_question(category_id):
     options = [correct] + wrongs
     random.shuffle(options)
 
-    # normalizuj URL slike - KLJUČNA IZMJENA
+    # normalizuj URL slike
     raw_path = (q['image_path'] or '').lstrip('/')
     raw_path = raw_path.replace('\\', '/')
-    
-    # Direktno koristi putanju kao što je u bazi (flags/filename ili outlines/filename)
+
     if raw_path:
-        # raw_path je već u formatu "flags/ad.svg" ili "outlines/ba.svg"
         image_url = url_for('static', filename=raw_path)
     else:
         image_url = ""
@@ -1441,11 +1578,15 @@ def api_borders_question():
     region    = request.args.get('region', '').lower().strip()
     region_eng = _REGION_ENG.get(region, '')
 
-    pool = [c for c in _BORDERS_COUNTRIES
-            if not region_eng or c['region'] == region_eng]
+    pool_all = [c for c in _BORDERS_COUNTRIES
+                if not region_eng or c['region'] == region_eng]
 
-    if not pool:
+    if not pool_all:
         return jsonify({'error': 'Nema zemalja s granicama za ovaj region'}), 404
+
+    exclude = {c.strip().lower() for c in request.args.get('exclude', '').split(',') if c.strip()}
+    pool_filtered = [c for c in pool_all if c['cca2'].lower() not in exclude]
+    pool = pool_filtered or pool_all  # ako su sve viđene, dozvoli ponavljanje
 
     for _ in range(15):
         country = random.choice(pool)
@@ -1521,12 +1662,15 @@ def api_population_question():
     region = request.args.get('region', '').lower().strip()
     region_codes = set(COUNTRY_REGIONS.get(region, [])) if region and region in COUNTRY_REGIONS else None
 
-    pool = [
+    pool_all = [
         (code, pop) for code, pop in COUNTRY_POPULATION.items()
         if not region_codes or code in region_codes
     ]
-    if not pool:
+    if not pool_all:
         return jsonify({'error': 'Nema zemalja za ovaj region'}), 404
+
+    exclude = {c.strip().lower() for c in request.args.get('exclude', '').split(',') if c.strip()}
+    pool = [p for p in pool_all if p[0] not in exclude] or pool_all
 
     code, population = random.choice(pool)
     name  = ALIASES.get(code, code.upper())
@@ -1624,12 +1768,16 @@ def quiz_comparison():
 def api_geomix_question():
     region = request.args.get('region', '').lower().strip()
     region_codes = set(COUNTRY_REGIONS.get(region, [])) if region and region in COUNTRY_REGIONS else None
-    pool = [c for c in ALIASES if not region_codes or c in region_codes]
+    pool_all = [c for c in ALIASES if not region_codes or c in region_codes]
+
+    exclude = {c.strip().lower() for c in request.args.get('exclude', '').split(',') if c.strip()}
+    pool_filtered = [c for c in pool_all if c.lower() not in exclude]
+    pick_pool = pool_filtered or pool_all  # fallback ako su sve iscrpljene
 
     for _ in range(25):
-        code = random.choice(pool)
+        code = random.choice(pick_pool)
         gen  = random.choice(_GEO_MIX_GENERATORS)
-        q    = gen(code, pool)
+        q    = gen(code, pool_all)
         if not q:
             continue
         return jsonify({
@@ -1648,6 +1796,13 @@ def api_comparison_question():
     region_codes = set(COUNTRY_REGIONS.get(region, [])) if region and region in COUNTRY_REGIONS else None
     pool = [c for c in ALIASES if not region_codes or c in region_codes]
 
+    # exclude: sortirani parovi "a:b" — već viđene kombinacije
+    exclude_pairs = {
+        tuple(sorted(p.strip().lower().split(':')))
+        for p in request.args.get('exclude', '').split(',')
+        if ':' in p
+    }
+
     METRICS = [
         ('population', '👥', 'Koja država ima VIŠE stanovnika?',
          lambda c: COUNTRY_POPULATION.get(c)),
@@ -1662,23 +1817,28 @@ def api_comparison_question():
                 'flag_url': url_for('static', filename=f'flags/{c}.svg'),
                 'emoji': _CCA2_TO_EMOJI.get(c, '🌍')}
 
-    for _ in range(25):
-        mk, mi, mq, getter = random.choice(METRICS)
-        eligible = [c for c in pool if getter(c)]
-        if len(eligible) < 2:
-            continue
-        a, b = random.sample(eligible, 2)
-        va, vb = getter(a), getter(b)
-        if va == vb:
-            continue
-        return jsonify({
-            'country_a':    cdata(a),
-            'country_b':    cdata(b),
-            'metric':       mk,
-            'metric_icon':  mi,
-            'question':     mq,
-            'correct_code': a if va > vb else b,
-        })
+    # 1. faza: poštuj exclude; 2. faza (fallback): dozvoli ponavljanje
+    for phase_excludes in (exclude_pairs, set()):
+        for _ in range(60):
+            mk, mi, mq, getter = random.choice(METRICS)
+            eligible = [c for c in pool if getter(c)]
+            if len(eligible) < 2:
+                continue
+            a, b = random.sample(eligible, 2)
+            va, vb = getter(a), getter(b)
+            if va == vb:
+                continue
+            pair_key = tuple(sorted([a.lower(), b.lower()]))
+            if pair_key in phase_excludes:
+                continue
+            return jsonify({
+                'country_a':    cdata(a),
+                'country_b':    cdata(b),
+                'metric':       mk,
+                'metric_icon':  mi,
+                'question':     mq,
+                'correct_code': a if va > vb else b,
+            })
     return jsonify({'error': 'Nije moguće generisati pitanje'}), 500
 
 
@@ -1734,24 +1894,293 @@ def admin_delete_user(uid):
 
 
 # --------- MULTIPLAYER SOCKET EVENTS (OPCIONALNO) ---------
+@app.route('/api/rooms')
+def api_rooms():
+    """Lista aktivnih čekajućih soba."""
+    result = []
+    for room_id, room in ROOMS.items():
+        if room['status'] == 'waiting':
+            result.append({
+                'id': room_id,
+                'name': room['name'],
+                'mode': room['mode'],
+                'category_id': room['category_id'],
+                'players': room['players'],
+                'max_players': room['max_players'],
+                'time_per_q': room['time_per_q'],
+                'status': room['status'],
+            })
+    return jsonify(result)
+
+# --------- MULTIPLAYER SOCKET EVENTS ---------
+
+@socketio.on('create_room')
+def on_create_room(data):
+    """Stvori novu sobu."""
+    room_id = generate_room_id()
+    player_name = data.get('player_name', 'Gost')
+    user = session.get('user')
+    user_id = (user or {}).get('id')
+
+    ROOMS[room_id] = {
+        'id': room_id,
+        'name': data.get('name', 'Soba'),
+        'mode': data.get('mode', 'quick'),
+        'category_id': data.get('category_id'),
+        'max_players': data.get('max_players', 2),
+        'time_per_q': data.get('time_per_q', 60),
+        'total_questions': 20,
+        'status': 'waiting',
+        'host_sid': request.sid,
+        'players': {
+            request.sid: {
+                'sid': request.sid,
+                'name': player_name,
+                'user_id': user_id,
+                'score': 0,
+                'answered': False,
+                'answer_time': 0,
+            }
+        },
+        'questions': [],
+        'current_q_idx': -1,
+        'q_start_time': None,
+        'current_answers': {},
+    }
+
+    join_room(room_id)
+    emit('room_state', ROOMS[room_id])
+    emit('player_list', ROOMS[room_id]['players'], to=room_id)
+
 @socketio.on('join_room')
 def on_join_room(data):
+    """Priključi se postojećoj sobi."""
     room_id = data.get('room_id')
-    player_name = data.get('player_name', 'Nepoznat igrač')
-    print(f"🎮 {player_name} se pridružio sobi {room_id}")
+    if room_id not in ROOMS:
+        emit('error', 'Soba ne postoji')
+        return
+
+    room = ROOMS[room_id]
+    if room['status'] != 'waiting':
+        emit('error', 'Soba je već počela')
+        return
+
+    if len(room['players']) >= room['max_players']:
+        emit('error', 'Soba je puna')
+        return
+
+    player_name = data.get('player_name', 'Gost')
+    user = session.get('user')
+    user_id = (user or {}).get('id')
+
+    room['players'][request.sid] = {
+        'sid': request.sid,
+        'name': player_name,
+        'user_id': user_id,
+        'score': 0,
+        'answered': False,
+        'answer_time': 0,
+    }
+
+    join_room(room_id)
+    emit('room_state', room)
+    emit('player_list', room['players'], to=room_id)
+
+@socketio.on('start_game')
+def on_start_game(data):
+    """Host startuje igru."""
+    room_id = data.get('room_id')
+    if room_id not in ROOMS:
+        emit('error', 'Soba ne postoji')
+        return
+
+    room = ROOMS[room_id]
+    if request.sid != room['host_sid']:
+        emit('error', 'Samo host može startati igru')
+        return
+
+    if len(room['players']) < 2:
+        emit('error', 'Trebaju najmanje 2 igrača')
+        return
+
+    room['questions'] = generate_questions_for_room(room['category_id'], room['total_questions'])
+    if len(room['questions']) < room['total_questions']:
+        emit('error', 'Nema dovoljno pitanja u kategoriji', to=room_id)
+        return
+
+    room['status'] = 'playing'
+    room['current_q_idx'] = 0
+    room['q_start_time'] = time.time()
+
+    emit('game_started', room, to=room_id)
+    socketio.start_background_task(question_timer_task, room_id, 0)
+    q0 = room['questions'][0]
+    emit('new_question', {
+        'image_path': q0['image_path'],
+        'options': q0.get('options', []),
+        'type': q0.get('type', 'multiple_choice'),
+        'country': q0.get('country', ''),
+    }, to=room_id)
+
+@socketio.on('submit_answer')
+def on_submit_answer(data):
+    """Igrač podnese odgovor."""
+    room_id = data.get('room_id')
+    answer = data.get('answer')
+
+    if room_id not in ROOMS:
+        emit('error', 'Soba ne postoji')
+        return
+
+    room = ROOMS[room_id]
+    if room['status'] != 'playing':
+        return
+
+    if request.sid not in room['players']:
+        return
+
+    if request.sid in room['current_answers']:
+        return
+
+    time_used = time.time() - room['q_start_time']
+    room['current_answers'][request.sid] = {
+        'answer': answer,
+        'time': time_used
+    }
+    room['players'][request.sid]['answered'] = True
+    room['players'][request.sid]['answer_time'] = time_used
+
+    emit('answer_ack', to=request.sid)
+
+    if len(room['current_answers']) >= len(room['players']):
+        end_question(room_id)
+
+def question_timer_task(room_id, q_idx):
+    """Background task: timer za pitanje."""
+    if room_id not in ROOMS:
+        return
+    room = ROOMS[room_id]
+
+    time.sleep(room['time_per_q'])
+
+    # Provjeri da li je pitanje i dalje aktivno
+    if room_id in ROOMS and ROOMS[room_id]['current_q_idx'] == q_idx:
+        end_question(room_id)
+
+def calculate_population_score(guess_str, real_pop, time_used, time_limit):
+    """Score za population pitanje: baziran na preciznosti + time bonus."""
+    try:
+        guess = float(guess_str)
+    except:
+        return 0
+    if guess <= 0 or real_pop <= 0:
+        return 0
+    ratio = max(guess / real_pop, real_pop / guess)
+    accuracy_score = max(0, round(100 * (1 - (ratio - 1))))
+    time_bonus = round(20 * max(0, 1 - time_used / time_limit)) if ratio <= 1.5 else 0
+    return accuracy_score + time_bonus
+
+def end_question(room_id):
+    """Završi trenutno pitanje i pošalji rezultate."""
+    if room_id not in ROOMS:
+        return
+
+    room = ROOMS[room_id]
+    q_idx = room['current_q_idx']
+
+    if q_idx >= len(room['questions']):
+        return
+
+    q = room['questions'][q_idx]
+    correct = q['correct']
+    is_population = q.get('type') == 'population'
+
+    for sid, answer_data in room['current_answers'].items():
+        answer = answer_data['answer'] if isinstance(answer_data, dict) else answer_data
+        time_used = room['players'][sid]['answer_time']
+        if is_population:
+            points = calculate_population_score(answer, float(correct), time_used, room['time_per_q'])
+        else:
+            is_correct = (answer or '').lower() == correct.lower()
+            points = calculate_score(time_used, room['time_per_q'], is_correct)
+        room['players'][sid]['score'] += points
+
+    for sid in room['players']:
+        answer = None
+        points_earned = 0
+        if sid in room['current_answers']:
+            answer_data = room['current_answers'][sid]
+            answer = answer_data['answer'] if isinstance(answer_data, dict) else answer_data
+            time_used = room['players'][sid]['answer_time']
+            if is_population:
+                points_earned = calculate_population_score(answer, float(correct), time_used, room['time_per_q'])
+            else:
+                is_correct = (answer or '').lower() == correct.lower()
+                points_earned = calculate_score(time_used, room['time_per_q'], is_correct)
+
+        socketio.emit('question_result', {
+            'correct_answer': correct,
+            'my_answer': answer,
+            'points_earned': points_earned,
+            'room_state': room,
+        }, to=sid)
+
+    room['current_q_idx'] += 1
+    room['current_answers'] = {}
+    for sid in room['players']:
+        room['players'][sid]['answered'] = False
+
+    if room['current_q_idx'] >= room['total_questions']:
+        room['status'] = 'finished'
+        rankings = sorted(
+            [{'name': room['players'][sid]['name'], 'score': room['players'][sid]['score']} for sid in room['players']],
+            key=lambda x: x['score'],
+            reverse=True
+        )
+        socketio.emit('game_ended', {
+            'rankings': rankings,
+            'room_state': room,
+        }, to=room_id)
+    else:
+        room['q_start_time'] = time.time()
+        q = room['questions'][room['current_q_idx']]
+        socketio.emit('new_question', {
+            'image_path': q['image_path'],
+            'options': q.get('options', []),
+            'type': q.get('type', 'multiple_choice'),
+            'country': q.get('country', ''),
+        }, to=room_id)
+        socketio.start_background_task(question_timer_task, room_id, room['current_q_idx'])
 
 @socketio.on('leave_room')
 def on_leave_room(data):
+    """Igrač napušta sobu."""
     room_id = data.get('room_id')
-    player_name = data.get('player_name', 'Nepoznat igrač')
-    print(f"👋 {player_name} je napustio sobu {room_id}")
+    if room_id not in ROOMS:
+        return
 
-@socketio.on('player_answer')
-def on_player_answer(data):
-    room_id = data.get('room_id')
-    player_name = data.get('player_name')
-    answer = data.get('answer')
-    print(f"📝 {player_name} u sobi {room_id} odgovorio: {answer}")
+    room = ROOMS[room_id]
+    if request.sid not in room['players']:
+        return
+
+    del room['players'][request.sid]
+    leave_room(room_id)
+
+    if len(room['players']) == 0:
+        # Obriši praznu sobu
+        del ROOMS[room_id]
+    else:
+        # Ako je host napustio, pretvori prvog igrača u hosta
+        if request.sid == room['host_sid']:
+            room['host_sid'] = next(iter(room['players'].keys()))
+
+        # Ako je igra u toku i nema dovoljno igrača, završi je
+        if room['status'] == 'playing' and len(room['players']) < 2:
+            room['status'] = 'finished'
+            socketio.emit('game_ended', {
+                'results': [{'name': room['players'][sid]['name'], 'score': room['players'][sid]['score']}
+                           for sid in room['players']]
+            }, to=room_id)
 
 # --------- RUN ---------
 if __name__ == '__main__':

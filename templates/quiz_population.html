@@ -1,8 +1,16 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="hr">
 <head>
+    <!-- Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-PFWL6447DH"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-PFWL6447DH');
+    </script>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
     <title>👥 Geo Kviz - Broj Stanovnika</title>
     <style>
         * { box-sizing:border-box; margin:0; padding:0; }
@@ -21,7 +29,7 @@
         }
         @keyframes gradientShift { 0%,100%{opacity:1;transform:scale(1) rotate(0deg)} 50%{opacity:.8;transform:scale(1.1) rotate(180deg)} }
 
-        .wrapper { max-width:900px; margin:0 auto; padding:20px; min-height:100vh; display:flex; flex-direction:column; }
+        .wrapper { max-width:900px; margin:0 auto; padding:20px; min-height:100vh; min-height:100dvh; display:flex; flex-direction:column; }
 
         /* HEADER */
         .header { display:flex; align-items:center; gap:20px; margin-bottom:30px; flex-wrap:wrap; }
@@ -62,6 +70,7 @@
             backdrop-filter:blur(10px); outline:none;
             transition:border-color .3s ease;
             -moz-appearance:textfield;
+            min-font-size:16px; /* sprječava iOS zoom */
         }
         .pop-input::-webkit-outer-spin-button,
         .pop-input::-webkit-inner-spin-button { -webkit-appearance:none; }
@@ -136,12 +145,78 @@
         .region-btn:hover { transform:translateY(-4px) scale(1.04); border-color:rgba(255,255,255,.4); background:rgba(255,255,255,.15); }
 
         @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
+
         @media (max-width:768px) {
+            body { height:100dvh; overflow:hidden; }
+
+            .wrapper {
+                padding: 10px 12px;
+                height: 100dvh;
+                min-height: unset;
+                overflow: hidden;
+                display: flex;
+                flex-direction: column;
+            }
+
+            .header { gap:8px; margin-bottom:8px; flex-shrink:0; }
             .stats { margin-left:0; width:100%; justify-content:space-between; }
-            .result-grid { grid-template-columns:1fr; }
-            .input-row { flex-direction:column; }
-            .confirm-btn { width:100%; }
+            .score,.timer,.progress { padding:5px 10px; font-size:0.82rem; }
+
+            .main-content {
+                flex: 1;
+                gap: 8px;
+                overflow-y: auto;
+                overflow-x: hidden;
+                padding-bottom: 10px;
+            }
+
+            /* Zastava kompaktna */
+            .country-card { padding:12px; gap:6px; border-radius:14px; flex-shrink:0; }
+            .flag-img { max-width:120px; max-height:75px; }
+            .country-name-display { font-size:clamp(1.2rem,5vw,1.7rem); }
+            .question-label { font-size:0.82rem; }
+
+            /* Input fiksiran na dno */
+            .input-area {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                background: rgba(10,10,30,0.98);
+                backdrop-filter: blur(16px);
+                border-radius: 18px 18px 0 0;
+                border-top: 2px solid rgba(124,58,237,0.5);
+                padding: 12px 16px 20px;
+                z-index: 100;
+                gap: 8px;
+                flex-shrink: 0;
+            }
+
+            /* Dodaj padding na dnu main-content da input ne prekrije sadržaj */
+            .main-content { padding-bottom: 130px; }
+
+            .input-hint { font-size:0.72rem; margin-bottom:4px; }
+            .input-row { gap:8px; }
+            .pop-input { font-size:16px; padding:12px 10px; }
+            .confirm-btn { padding:12px 18px; font-size:1rem; white-space:nowrap; }
+
+            /* Result card */
+            .result-card { padding:12px; border-radius:14px; }
+            .result-grid { grid-template-columns:1fr 1fr 1fr; gap:6px; }
+            .result-cell { padding:8px; border-radius:10px; }
+            .result-cell-label { font-size:0.65rem; }
+            .result-cell-value { font-size:0.9rem; }
+            .result-score { font-size:1.1rem; }
+
+            .next-btn { padding:12px 24px; font-size:1rem; width:100%; }
+            .actions { padding-bottom: 4px; }
         }
+
+        @media (max-width:380px) {
+            .flag-img { max-width:100px; max-height:65px; }
+            .result-grid { grid-template-columns:1fr 1fr; }
+        }
+
         @media (prefers-reduced-motion:reduce) { * { animation-duration:.01ms!important; transition-duration:.01ms!important; } }
     </style>
 </head>
@@ -515,7 +590,14 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('regionOverlay').style.display = 'flex';
+
+            // Mob fix: scroll na input kad se otvori tastatura
+            const inp = document.getElementById('populationInput');
+            inp.addEventListener('focus', () => {
+                setTimeout(() => inp.scrollIntoView({ behavior:'smooth', block:'center' }), 300);
+            });
         });
     </script>
 </body>
 </html>
+

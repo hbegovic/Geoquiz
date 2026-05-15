@@ -1,6 +1,14 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="hr">
 <head>
+    <!-- Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-PFWL6447DH"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-PFWL6447DH');
+    </script>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
     <title>🎮 Multiplayer - Geo Kviz</title>
@@ -520,7 +528,7 @@
     
     <div class="wrapper">
         <div class="header">
-            <a href="/" class="back-btn">← Nazad</a>
+            <a href="/" class="back-btn" onclick="handleBackBtn(event)">← Nazad</a>
             <h1 class="multiplayer-title">🎮 Multiplayer</h1>
         </div>
 
@@ -619,7 +627,7 @@
             <div class="room-section">
                 <h2 class="section-title" id="setupTitle">⚡ Brza igra</h2>
                 <div style="padding: 20px;">
-                    <div class="form-group">
+                    <div class="form-group" id="nameFieldGroup">
                         <label class="form-label">Tvoje ime:</label>
                         <input type="text" class="form-input" id="playerNameInput" placeholder="Unesi svoje ime..." required>
                     </div>
@@ -632,6 +640,18 @@
                             <option value="7">👥 Broj Stanovnika</option>
                         </select>
                     </div>
+                    <div class="form-group">
+                        <label class="form-label">Region:</label>
+                        <select class="form-select" id="setupRegion">
+                            <option value="">🌐 Cijeli svijet</option>
+                            <option value="europa">🇪🇺 Europa</option>
+                            <option value="azija">🌏 Azija</option>
+                            <option value="afrika">🌍 Afrika</option>
+                            <option value="amerike">🌎 Amerike</option>
+                            <option value="okeanija">🌊 Okeanija</option>
+                        </select>
+                    </div>
+
                     <div id="customSettings" style="display: none;">
                         <div class="form-group">
                             <label class="form-label">Max igrača:</label>
@@ -678,6 +698,7 @@
                         <button class="create-room-btn" onclick="startGame()">▶️ Pokreni igru</button>
                     </div>
                     <p id="waitingMessage" style="opacity: 0.8; margin-top: 20px;">Čekanje da se priključe drugi igrači...</p>
+                    <button onclick="leaveRoom()" style="margin-top: 20px; padding: 10px 24px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.08); color: #fff; cursor: pointer;">← Napusti sobu</button>
                 </div>
             </div>
         </div>
@@ -751,10 +772,64 @@
 
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script>
+        // ===== ZVUKOVI =====
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = null;
+
+        function getAudioCtx() {
+            if (!audioCtx) audioCtx = new AudioCtx();
+            return audioCtx;
+        }
+
+        function playSound(type) {
+            try {
+                const ctx = getAudioCtx();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+
+                if (type === 'correct') {
+                    osc.frequency.setValueAtTime(523, ctx.currentTime);
+                    osc.frequency.setValueAtTime(659, ctx.currentTime + 0.1);
+                    osc.frequency.setValueAtTime(784, ctx.currentTime + 0.2);
+                    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+                    osc.start(ctx.currentTime);
+                    osc.stop(ctx.currentTime + 0.4);
+                } else if (type === 'wrong') {
+                    osc.frequency.setValueAtTime(300, ctx.currentTime);
+                    osc.frequency.setValueAtTime(200, ctx.currentTime + 0.15);
+                    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+                    osc.start(ctx.currentTime);
+                    osc.stop(ctx.currentTime + 0.3);
+                } else if (type === 'tick') {
+                    osc.frequency.setValueAtTime(800, ctx.currentTime);
+                    gain.gain.setValueAtTime(0.05, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
+                    osc.start(ctx.currentTime);
+                    osc.stop(ctx.currentTime + 0.05);
+                } else if (type === 'finish') {
+                    [523, 659, 784, 1047].forEach((f, i) => {
+                        const o = ctx.createOscillator();
+                        const g = ctx.createGain();
+                        o.connect(g); g.connect(ctx.destination);
+                        o.frequency.value = f;
+                        g.gain.setValueAtTime(0.3, ctx.currentTime + i * 0.15);
+                        g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.15 + 0.3);
+                        o.start(ctx.currentTime + i * 0.15);
+                        o.stop(ctx.currentTime + i * 0.15 + 0.3);
+                    });
+                }
+            } catch(e) {}
+        }
+
         // ===== STATE =====
         let socket = null;
         let currentRoom = null;
         let playerName = '';
+        let loggedInUsername = '';
         let myScore = 0;
         let answeredThisQuestion = false;
         let currentQuestion = null;
@@ -866,6 +941,23 @@
 
                 const status = document.getElementById('answerStatus');
 
+                // Zvuk
+                if (isPopulation) {
+                    const realForSound = parseFloat(correctAnswer);
+                    const guessForSound = parseFloat(myAnswer);
+                    if (myAnswer && Math.max(guessForSound/realForSound, realForSound/guessForSound) <= 1.5) {
+                        playSound('correct');
+                    } else {
+                        playSound('wrong');
+                    }
+                } else {
+                    if (myAnswer && myAnswer.toLowerCase() === correctAnswer.toLowerCase()) {
+                        playSound('correct');
+                    } else {
+                        playSound('wrong');
+                    }
+                }
+
                 if (isPopulation) {
                     const real = parseFloat(correctAnswer);
                     const guess = parseFloat(myAnswer);
@@ -905,6 +997,7 @@
             socket.on('game_ended', (data) => {
                 console.log('Game ended:', data);
                 currentRoom = data.room_state;
+                playSound('finish');
                 showResultsScreen(data.rankings);
             });
 
@@ -949,7 +1042,7 @@
         }
 
         function createRoomFromSetup() {
-            const playerName = document.getElementById('playerNameInput').value;
+            playerName = document.getElementById('playerNameInput').value || loggedInUsername;
             if (!playerName) {
                 alert('Unesi svoje ime!');
                 return;
@@ -966,10 +1059,13 @@
 
             const cfg = config[currentMode];
 
+            const region = document.getElementById('setupRegion').value;
+
             socket.emit('create_room', {
                 name: `${playerName}'s game`,
                 mode: currentMode,
                 category_id: categoryId,
+                region: region,
                 max_players: cfg.max,
                 time_per_q: cfg.time,
                 player_name: playerName
@@ -1173,6 +1269,9 @@
 
                 if (remaining <= 5) {
                     bar.style.background = 'linear-gradient(90deg, #ef4444, #dc2626)';
+                    if (Math.floor(remaining) !== Math.floor(remaining + 0.05) && !answeredThisQuestion) {
+                        playSound('tick');
+                    }
                 } else {
                     bar.style.background = 'linear-gradient(90deg, #10b981, #059669)';
                 }
@@ -1255,8 +1354,9 @@
 
 
         function joinRoom(roomId) {
-            playerName = prompt('Unesi svoje ime:');
-            if (!playerName) return;
+            const name = loggedInUsername || prompt('Unesi svoje ime:');
+            if (!name) return;
+            playerName = name;
 
             socket.emit('join_room', {
                 room_id: roomId,
@@ -1279,11 +1379,59 @@
             socket.emit('start_game', { room_id: currentRoom.id });
         }
 
+        function leaveRoom() {
+            if (currentRoom) {
+                socket.emit('leave_room', { room_id: currentRoom.id });
+                currentRoom = null;
+            }
+            showLobby();
+        }
+
+        function handleBackBtn(e) {
+            // Ako smo u sobi, napusti je prije navigacije
+            if (currentRoom) {
+                e.preventDefault();
+                socket.emit('leave_room', { room_id: currentRoom.id });
+                currentRoom = null;
+                window.location.href = '/';
+            }
+            // Ako nismo u sobi, normalno idi na /
+        }
+
+        // ===== AUTO-REFRESH SOBA =====
+        let roomsRefreshInterval = null;
+
+        function startRoomsRefresh() {
+            roomsRefreshInterval = setInterval(() => {
+                if (document.getElementById('screen-lobby').style.display !== 'none') {
+                    loadRooms();
+                }
+            }, 5000);
+        }
+
+        function stopRoomsRefresh() {
+            if (roomsRefreshInterval) clearInterval(roomsRefreshInterval);
+        }
+
         // ===== INIT =====
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
             initParticles();
             initSocket();
+
+            // Učitaj korisnika i popuni/sakrij ime ako je prijavljen
+            try {
+                const res = await fetch('/api/me');
+                const me = await res.json();
+                if (me.logged_in) {
+                    loggedInUsername = me.username;
+                    playerName = me.username;
+                    // Sakrij polje za ime - korisnik je već prijavljen
+                    document.getElementById('nameFieldGroup').style.display = 'none';
+                }
+            } catch(e) {}
+
             showLobby();
+            startRoomsRefresh();
 
             // Fix: scroll na input kada se otvori tastatura na mobilnim
             const popInput = document.getElementById('populationInput');

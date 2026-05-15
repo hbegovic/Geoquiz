@@ -33,14 +33,16 @@ def generate_room_id():
 
 POPULATION_CATEGORY_ID = 7
 
-def generate_questions_for_room(category_id, n=20):
+def generate_questions_for_room(category_id, n=20, region=''):
     """Generiši N pitanja za multiplayer sobu."""
     conn = get_db()
     questions = []
 
+    region_codes = set(COUNTRY_REGIONS.get(region, [])) if region and region in COUNTRY_REGIONS else None
+
     # Posebna logika za Broj Stanovnika
     if category_id == POPULATION_CATEGORY_ID:
-        all_codes = list(COUNTRY_POPULATION.keys())
+        all_codes = [c for c in COUNTRY_POPULATION.keys() if not region_codes or c in region_codes]
         random.shuffle(all_codes)
         for code in all_codes[:n]:
             pop = COUNTRY_POPULATION[code]
@@ -58,7 +60,7 @@ def generate_questions_for_room(category_id, n=20):
 
     asked_ids = set()
 
-    # Za flags/outlines: učitaj sve nazive za distraktore
+    # Za flags/outlines: učitaj sve nazive za distraktore (filtrirano po regionu)
     if category_id in (CATEGORY_FLAGS_ID, CATEGORY_OUTLINES_ID):
         all_names_rows = conn.execute(
             'SELECT DISTINCT correct_answer FROM questions WHERE category_id=?',
@@ -66,13 +68,25 @@ def generate_questions_for_room(category_id, n=20):
         ).fetchall()
         all_names = [(r['correct_answer'] or '').strip() for r in all_names_rows if r['correct_answer']]
 
+        if region_codes:
+            region_name_set = {ALIASES[c] for c in region_codes if c in ALIASES}
+            filtered = [n for n in all_names if n in region_name_set]
+            if len(filtered) >= 4:
+                all_names = filtered
+
+    # Dodatni WHERE filter za region (zastave/oblik)
+    region_where = ''
+    if region_codes and category_id in (CATEGORY_FLAGS_ID, CATEGORY_OUTLINES_ID):
+        like_clauses = ' OR '.join(f"image_path LIKE '%/{c}.%'" for c in region_codes)
+        region_where = f' AND ({like_clauses})'
+
     for _ in range(n * 3):
         if len(questions) >= n:
             break
         try:
             q = conn.execute(
                 f'SELECT id, image_path, options, correct_answer FROM questions '
-                f'WHERE category_id=? AND id NOT IN ({",".join("?" * len(asked_ids) if asked_ids else "0")})'
+                f'WHERE category_id=?{region_where} AND id NOT IN ({",".join("?" * len(asked_ids) if asked_ids else "0")})'
                 f'ORDER BY RANDOM() LIMIT 1',
                 (category_id, *list(asked_ids)) if asked_ids else (category_id,)
             ).fetchone()
@@ -172,9 +186,17 @@ def ensure_leaderboard_table():
             accuracy INTEGER NOT NULL,
             time_spent INTEGER DEFAULT 0,
             avatar TEXT DEFAULT '🎯',
-            completed_at TEXT NOT NULL DEFAULT (datetime('now'))
+            completed_at TEXT NOT NULL DEFAULT (datetime('now')),
+            is_multiplayer INTEGER DEFAULT 0,
+            mp_rank INTEGER DEFAULT 0
         );
         """)
+        # Dodaj kolone ako ne postoje (za stare baze)
+        for col, definition in [('is_multiplayer', 'INTEGER DEFAULT 0'), ('mp_rank', 'INTEGER DEFAULT 0')]:
+            try:
+                conn.execute(f'ALTER TABLE leaderboard ADD COLUMN {col} {definition}')
+            except:
+                pass
 
 # pozovi jednom pri startu
 ensure_users_table()
@@ -827,6 +849,33 @@ def api_leaderboard():
             "avatar": r["avatar"]
         })
     return jsonify(result)
+
+@app.route('/api/multiplayer_leaderboard')
+def api_multiplayer_leaderboard():
+    conn = get_db()
+    rows = conn.execute("""
+        SELECT
+            player_name,
+            COUNT(*) as games,
+            SUM(score) as total_score,
+            ROUND(AVG(score), 0) as avg_score,
+            MAX(score) as best_score,
+            SUM(CASE WHEN mp_rank = 1 THEN 1 ELSE 0 END) as wins,
+            ROUND(100.0 * SUM(CASE WHEN mp_rank = 1 THEN 1 ELSE 0 END) / COUNT(*), 1) as win_rate
+        FROM leaderboard
+        WHERE is_multiplayer = 1
+        GROUP BY player_name
+        ORDER BY total_score DESC
+        LIMIT 50
+    """).fetchall()
+    return jsonify([dict(r) for r in rows])
+
+@app.route('/api/me')
+def api_me():
+    user = session.get('user')
+    if user:
+        return jsonify({'logged_in': True, 'username': user['username'], 'id': user['id']})
+    return jsonify({'logged_in': False})
 
 @app.route('/api/submit_score', methods=['POST'])
 def api_submit_score():
@@ -1927,6 +1976,7 @@ def on_create_room(data):
         'name': data.get('name', 'Soba'),
         'mode': data.get('mode', 'quick'),
         'category_id': data.get('category_id'),
+        'region': data.get('region', ''),
         'max_players': data.get('max_players', 2),
         'time_per_q': data.get('time_per_q', 60),
         'total_questions': 20,
@@ -2003,7 +2053,7 @@ def on_start_game(data):
         emit('error', 'Trebaju najmanje 2 igrača')
         return
 
-    room['questions'] = generate_questions_for_room(room['category_id'], room['total_questions'])
+    room['questions'] = generate_questions_for_room(room['category_id'], room['total_questions'], room.get('region', ''))
     if len(room['questions']) < room['total_questions']:
         emit('error', 'Nema dovoljno pitanja u kategoriji', to=room_id)
         return
@@ -2137,6 +2187,37 @@ def end_question(room_id):
             key=lambda x: x['score'],
             reverse=True
         )
+
+        # Submituj score na leaderboard za svakog igrača sa rankom
+        _cat_map = {1: 'flags', 2: 'shapes', 3: 'cities', 7: 'population'}
+        category_name = _cat_map.get(room['category_id'], 'multiplayer')
+        try:
+            with get_db() as conn:
+                for rank, p in enumerate(rankings, 1):
+                    # nađi sid za ovog igrača
+                    sid = next((s for s, pl in room['players'].items() if pl['name'] == p['name']), None)
+                    player = room['players'].get(sid, {}) if sid else {}
+                    conn.execute("""
+                        INSERT INTO leaderboard
+                        (player_name, user_id, category_id, category_name, score,
+                         correct_answers, total_questions, accuracy, time_spent,
+                         avatar, completed_at, is_multiplayer, mp_rank)
+                        VALUES (?,?,?,?,?,?,?,?,?, '🎮', datetime('now'), 1, ?)
+                    """, (
+                        p['name'],
+                        player.get('user_id'),
+                        room['category_id'] or 0,
+                        category_name,
+                        p['score'],
+                        0,
+                        room['total_questions'],
+                        0,
+                        0,
+                        rank
+                    ))
+        except Exception as e:
+            app.logger.error(f"Multiplayer leaderboard insert failed: {e}")
+
         socketio.emit('game_ended', {
             'rankings': rankings,
             'room_state': room,

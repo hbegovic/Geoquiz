@@ -496,62 +496,29 @@
         
         /* === RESPONSIVE === */
         @media (max-width: 768px) {
-            .wrapper {
-                padding: 16px;
-            }
-            
-            .header {
-                gap: 15px;
-            }
-            
-            .stats {
-                margin-left: 0;
-                width: 100%;
-                justify-content: space-between;
-            }
-            
-            .options-grid {
-                grid-template-columns: 1fr;
-                gap: 15px;
-            }
-            
-            .option-btn {
-                padding: 16px;
-                min-height: 60px;
-            }
-            
-            .image-container {
-                padding: 20px;
-                min-height: 250px;
-            }
-            
-            .finish-actions {
-                flex-direction: column;
-                width: 100%;
-            }
-            
-            .play-again-btn, .home-btn {
-                width: 100%;
-            }
+            .wrapper { padding: 12px; }
+            .header { gap: 10px; flex-wrap: wrap; }
+            .stats { margin-left: 0; width: 100%; justify-content: space-between; }
+            .options-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+            .option-btn { padding: 14px 10px; min-height: 56px; font-size: 0.95rem; }
+            .image-container { padding: 16px; min-height: 200px; }
+            .image-container img { max-height: 180px; }
+            .finish-actions { flex-direction: column; width: 100%; }
+            .play-again-btn, .home-btn { width: 100%; }
+            .quiz-stats { grid-template-columns: 1fr 1fr; }
         }
-        
+
         @media (max-width: 480px) {
-            .quiz-title {
-                font-size: 1.3rem;
-            }
-            
-            .back-btn {
-                padding: 10px 16px;
-                font-size: 1rem;
-            }
-            
-            .finish-title {
-                font-size: 2rem;
-            }
-            
-            .final-score {
-                font-size: 2.5rem;
-            }
+            .options-grid { grid-template-columns: 1fr; gap: 8px; }
+            .option-btn { padding: 14px; min-height: 52px; font-size: 1rem; }
+            .image-container { padding: 12px; min-height: 160px; }
+            .image-container img { max-height: 150px; }
+            .quiz-title { font-size: 1.2rem; }
+            .back-btn { padding: 9px 14px; font-size: 0.95rem; }
+            .score, .timer, .progress { padding: 6px 12px; font-size: 0.9rem; }
+            .finish-title { font-size: 1.8rem; }
+            .final-score { font-size: 2.2rem; }
+            .quiz-stats { grid-template-columns: 1fr; }
         }
         
         /* === ACCESSIBILITY === */

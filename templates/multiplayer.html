@@ -2,7 +2,7 @@
 <html lang="hr">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
     <title>🎮 Multiplayer - Geo Kviz</title>
     
     <style>
@@ -470,26 +470,46 @@
         
         /* === RESPONSIVE === */
         @media (max-width: 1024px) {
-            .game-container {
-                grid-template-columns: 1fr;
-            }
-            
-            .players-panel {
-                order: -1;
-            }
+            .game-container { grid-template-columns: 1fr; }
+            .players-panel { order: -1; }
         }
-        
+
         @media (max-width: 768px) {
-            .wrapper {
+            .wrapper { padding: 12px; }
+            .game-modes { grid-template-columns: 1fr; gap: 12px; }
+            .game-mode-card { padding: 20px; }
+            .mode-icon { font-size: 2rem; margin-bottom: 8px; }
+            .room-form { grid-template-columns: 1fr; }
+            .room-section { padding: 20px; }
+            .room-card { flex-direction: column; align-items: flex-start; gap: 12px; }
+            .join-btn { width: 100%; text-align: center; }
+            .room-details { flex-wrap: wrap; gap: 8px; }
+            #screen-game .game-container { gap: 15px; }
+            .game-area { padding: 16px; }
+            .players-panel { padding: 16px; }
+        }
+
+        @media (max-width: 480px) {
+            .multiplayer-title { font-size: 1.4rem; }
+            .back-btn { padding: 10px 14px; font-size: 1rem; }
+            .game-mode-card { padding: 16px; border-radius: 16px; }
+            .create-room-btn { width: 100%; }
+        }
+
+        /* Fix: tastatura na mobilnim — spriječi skakanje */
+        @media (max-width: 768px) {
+            #populationContainer {
+                position: sticky;
+                bottom: 0;
+                background: rgba(15, 15, 35, 0.95);
+                backdrop-filter: blur(10px);
                 padding: 16px;
+                border-top: 1px solid rgba(255,255,255,0.1);
+                margin: 0 -16px;
+                z-index: 10;
             }
-            
-            .game-modes {
-                grid-template-columns: 1fr;
-            }
-            
-            .room-form {
-                grid-template-columns: 1fr;
+            #populationContainer input {
+                font-size: 16px !important; /* sprječava auto-zoom na iOS */
             }
         }
     </style>
@@ -1264,6 +1284,16 @@
             initParticles();
             initSocket();
             showLobby();
+
+            // Fix: scroll na input kada se otvori tastatura na mobilnim
+            const popInput = document.getElementById('populationInput');
+            if (popInput) {
+                popInput.addEventListener('focus', () => {
+                    setTimeout(() => {
+                        popInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }, 300);
+                });
+            }
         });
     </script>
 </body>
